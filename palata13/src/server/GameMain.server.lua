@@ -199,16 +199,81 @@ local function makeFuse(position)
 		if not isAlive(player) or not m.Parent then
 			return
 		end
-		if player:GetAttribute("Fuse") then
-			Remotes.notify(player, "Ты уже несёшь предохранитель. Найди генератор.")
+		local have = player:GetAttribute("Fuses") or 0
+		if have >= (R.MaxFuses or 2) then
+			Remotes.notify(player, "Карманы полны: больше " .. (R.MaxFuses or 2) .. " предохранителей не унести.")
 			return
 		end
 		Sound.playAt("Pickup", body.Position, { Volume = 0.8 })
 		m:Destroy()
-		player:SetAttribute("Fuse", true)
-		Remotes.notify(player, "Предохранитель у тебя. Вставь его в любой генератор.", Color3.fromRGB(255, 190, 60))
+		player:SetAttribute("Fuses", have + 1)
+		Remotes.notify(player, "Предохранитель в инвентаре (" .. (have + 1) .. "). Вставь его в любой генератор.", Color3.fromRGB(255, 190, 60))
 	end)
 	return m
+end
+
+-- ЗАПИСКИ: сюжет карты. Записка остаётся на месте — каждый игрок забирает свою копию.
+local function noteList(player)
+	local list = {}
+	for id in string.gmatch(player:GetAttribute("Notes") or "", "%d+") do
+		list[tonumber(id)] = true
+	end
+	return list
+end
+
+local function makeNote(position, noteId)
+	local p = Instance.new("Part")
+	p.Name = "Note"
+	p.Size = Vector3.new(1.3, 0.05, 1.7)
+	p.Material = Enum.Material.SmoothPlastic
+	p.Color = Color3.fromRGB(214, 204, 178)
+	p.Anchored = true
+	p.CanCollide = false
+	p.CFrame = CFrame.new(position + Vector3.new(0, 0.05, 0)) * CFrame.Angles(0, math.random() * 6.28, 0)
+	local ink = Instance.new("Part")
+	ink.Size = Vector3.new(0.9, 0.06, 0.08)
+	ink.Material = Enum.Material.SmoothPlastic
+	ink.Color = Color3.fromRGB(90, 8, 10)
+	ink.Anchored = true
+	ink.CanCollide = false
+	ink.CFrame = p.CFrame * CFrame.new(0, 0.01, -0.3)
+	ink.Parent = p
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(255, 230, 190)
+	glow.Range = 4
+	glow.Brightness = 0.35
+	glow.Parent = p
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Взять записку"
+	prompt.ObjectText = "Записка " .. noteId
+	prompt.HoldDuration = 0.3
+	prompt.MaxActivationDistance = 8
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = p
+	p.Parent = pickupFolder
+	prompt.Triggered:Connect(function(player)
+		if not isAlive(player) or not p.Parent then
+			return
+		end
+		local list = noteList(player)
+		if not list[noteId] then
+			list[noteId] = true
+			local ids = {}
+			for id in pairs(list) do
+				table.insert(ids, id)
+			end
+			table.sort(ids)
+			player:SetAttribute("Notes", table.concat(ids, ","))
+			local s = ps(player)
+			if s then
+				s.coins += Config.Rewards.Note.coins
+				s.xp += Config.Rewards.Note.xp
+			end
+			Sound.playAt("Paper", p.Position, { Volume = 0.8, RollOffMaxDistance = 25 })
+		end
+		Remotes.RoundUpdate:FireClient(player, "note", noteId)
+	end)
+	return p
 end
 
 local function makeBattery(position)
@@ -273,6 +338,14 @@ local function spawnPickups(fuseCount)
 	shuffle(fuseSpots)
 	for i = 1, math.min(fuseCount, #fuseSpots) do
 		makeFuse(fuseSpots[i])
+	end
+	-- записки лежат на оставшихся точках предохранителей
+	local notes = Config.Notes[workspace:GetAttribute("Map")] or {}
+	for n = 1, #notes do
+		local spot = fuseSpots[fuseCount + n]
+		if spot then
+			makeNote(spot, n)
+		end
 	end
 	shuffle(batSpots)
 	for i = 1, math.min(R.Batteries, #batSpots) do
@@ -461,19 +534,101 @@ local function powerOn()
 	end
 end
 
+-- скорость починки одним игроком (1 = базовая)
 local function repairMult(player)
 	local perk = player:GetAttribute("Perk_repair")
-	local m = type(perk) == "number" and perk or 1
-	if round and round.difficulty.id == "Easy" then
-		m *= 1.2
+	return type(perk) == "number" and perk or 1
+end
+
+-- секунд починки одним игроком без перков на текущей сложности
+local function repairTime()
+	return (round and round.difficulty.repair) or R.RepairTime
+end
+
+local REPAIR_REACH = 11 -- дальше от слота — починка прерывается
+
+-- места у панели: по центру, затем слева/справа (для помощников)
+local KNEEL_SIDE = { 0, -2.2, 2.2, -4.4 }
+
+local function freeze(player, slot, place)
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if hum then
+		hum.WalkSpeed = 0
+		hum.JumpPower = 0
+		hum.AutoRotate = false
 	end
-	return m
+	if hrp and slot then
+		-- ставим на колено вплотную к панели (лицевая сторона слота смотрит по его LookVector)
+		local out = slot.CFrame.LookVector
+		local side = slot.CFrame.RightVector * (KNEEL_SIDE[place] or 0)
+		local spot = slot.Position + out * 2.7 + side
+		spot = Vector3.new(spot.X, hrp.Position.Y, spot.Z)
+		local face = Vector3.new(slot.Position.X + side.X, spot.Y, slot.Position.Z + side.Z)
+		hrp.AssemblyLinearVelocity = Vector3.zero
+		hrp.CFrame = CFrame.lookAt(spot, face)
+	end
+end
+
+local function unfreeze(player)
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum and hum.Health > 0 then
+		hum.WalkSpeed = Config.Player.WalkSpeed
+		hum.JumpPower = 38
+		hum.AutoRotate = true
+	end
+end
+
+local function updateRepairFx(g)
+	local busy = next(g.repairers) ~= nil
+	local sparks = g.slot:FindFirstChild("Sparks")
+	if sparks then
+		sparks.Enabled = busy
+		sparks.Rate = busy and 14 or 0
+	end
+	if g.crank then
+		if busy and not g.crank.IsPlaying then
+			g.crank:Play()
+		elseif not busy and g.crank.IsPlaying then
+			g.crank:Stop()
+		end
+	end
+	local count = 0
+	for _ in pairs(g.repairers) do
+		count += 1
+	end
+	g.model:SetAttribute("Repairers", count)
+end
+
+local function stopRepair(g, player)
+	if not g.repairers[player] then
+		return
+	end
+	g.repairers[player] = nil
+	player:SetAttribute("Repairing", nil)
+	player:SetAttribute("RepairProgress", nil)
+	unfreeze(player)
+	updateRepairFx(g)
+end
+
+local function stopAllRepairs(player)
+	for _, g in ipairs(gens) do
+		if g.repairers and g.repairers[player] then
+			stopRepair(g, player)
+		end
+	end
+	player:SetAttribute("Repairing", nil)
+	player:SetAttribute("RepairProgress", nil)
 end
 
 local function generatorDone(g, player)
 	g.done = true
 	g.progress = 1
-	g.repairing = nil
+	for p in pairs(g.repairers) do
+		stopRepair(g, p)
+	end
 	g.prompt.Enabled = false
 	setIndicators(g)
 	round.gensDone += 1
@@ -521,13 +676,14 @@ local function setupGenerators()
 	for _, model in ipairs(list) do
 		local slot = model:FindFirstChild("Slot", true)
 		if slot then
-			local g = { model = model, slot = slot, indicators = {}, fused = false, done = false, progress = 0, repairing = nil, holdStart = 0 }
+			local g = { model = model, slot = slot, indicators = {}, fused = false, done = false, progress = 0, repairers = {} }
 			for i = 1, 8 do
 				local ind = model:FindFirstChild("I" .. i, true)
 				if ind then
 					table.insert(g.indicators, ind)
 				end
 			end
+			g.crank = Sound.make("GeneratorCrank", slot, { Looped = true, Volume = 0.8, RollOffMinDistance = 10, RollOffMaxDistance = 90 })
 			local prompt = Instance.new("ProximityPrompt")
 			prompt.ActionText = "Вставить предохранитель"
 			prompt.ObjectText = "Генератор"
@@ -538,44 +694,24 @@ local function setupGenerators()
 			g.prompt = prompt
 			setIndicators(g)
 
-			prompt.PromptButtonHoldBegan:Connect(function(player)
-				if not round or not isAlive(player) or not g.fused or g.done or g.repairing then
-					return
-				end
-				g.repairing = player
-				g.holdStart = os.clock()
-				player:SetAttribute("Repairing", model.Name)
-				Sound.playAt("GeneratorCrank", slot.Position, { Volume = 0.8, RollOffMaxDistance = 90 })
-				FS.emitNoise(player, slot.Position, "interact")
-				local sparks = slot:FindFirstChild("Sparks")
-				if sparks then
-					sparks.Enabled = true
-				end
-			end)
-			prompt.PromptButtonHoldEnded:Connect(function(player)
-				if g.repairing ~= player then
-					return
-				end
-				g.repairing = nil
-				player:SetAttribute("Repairing", nil)
-				local sparks = slot:FindFirstChild("Sparks")
-				if sparks then
-					sparks.Enabled = false
-				end
-				if not g.done then
-					prompt.HoldDuration = math.max(0.3, R.RepairTime * (1 - g.progress) / repairMult(player))
-				end
-			end)
 			prompt.Triggered:Connect(function(player)
-				if not round or not isAlive(player) or g.done then
+				if not round or g.done then
+					return
+				end
+				-- повторное E — встать и отойти
+				if g.repairers[player] then
+					stopRepair(g, player)
+					return
+				end
+				if not isAlive(player) or player:GetAttribute("Hiding") then
 					return
 				end
 				if not g.fused then
-					if not player:GetAttribute("Fuse") then
+					if (player:GetAttribute("Fuses") or 0) <= 0 then
 						Remotes.notify(player, "Нужен предохранитель. Ищи их по карте.")
 						return
 					end
-					player:SetAttribute("Fuse", false)
+					player:SetAttribute("Fuses", player:GetAttribute("Fuses") - 1)
 					g.fused = true
 					setIndicators(g)
 					Sound.playAt("FuseInsert", slot.Position, { Volume = 1, RollOffMaxDistance = 120 })
@@ -586,36 +722,69 @@ local function setupGenerators()
 						s.coins += Config.Rewards.Fuse.coins
 						s.xp += Config.Rewards.Fuse.xp
 					end
-					prompt.ActionText = "Чинить (держи E)"
-					prompt.HoldDuration = R.RepairTime / repairMult(player)
-					Remotes.notify(player, "Теперь почини его: держи E. Это шумно.", Color3.fromRGB(255, 190, 60))
+					prompt.ActionText = "Чинить / встать (E)"
+					prompt.HoldDuration = 0.25
+					Remotes.notify(player, string.format("Предохранитель вставлен. Чини: E — начать, E — встать. Один человек — ~%d сек, вдвоём быстрее. Это шумно.", math.floor(repairTime() / repairMult(player))), Color3.fromRGB(255, 190, 60))
 					return
 				end
-				-- удержание завершено полностью
-				g.progress = 1
-				g.repairing = nil
-				player:SetAttribute("Repairing", nil)
-				generatorDone(g, player)
+				-- начать починку: персонаж садится к панели и не может двигаться
+				stopAllRepairs(player)
+				FS.setCrouch(player, false)
+				FS.setOn(player, false)
+				local used = {}
+				for _, pl in pairs(g.repairers) do
+					used[pl] = true
+				end
+				local place = 1
+				while used[place] do
+					place += 1
+				end
+				if place > #KNEEL_SIDE then
+					Remotes.notify(player, "У генератора нет места.")
+					return
+				end
+				g.repairers[player] = place
+				player:SetAttribute("Repairing", model.Name)
+				player:SetAttribute("RepairProgress", g.progress)
+				freeze(player, slot, place)
+				FS.emitNoise(player, slot.Position, "interact")
+				updateRepairFx(g)
 			end)
 			table.insert(gens, g)
 		end
 	end
-	-- прогресс починки тикает, пока игрок держит кнопку (частичный прогресс сохраняется)
+	-- прогресс тикает, пока у генератора кто-то сидит (частичный прогресс сохраняется)
 	task.spawn(function()
 		local myRound = round
+		local STEP = 0.25
 		while round == myRound and round and not round.ended do
-			task.wait(0.25)
+			task.wait(STEP)
 			for _, g in ipairs(gens) do
-				local p = g.repairing
-				if p and not g.done then
-					if not isAlive(p) or not p.Parent then
-						g.repairing = nil
-					else
-						g.progress = math.min(0.999, g.progress + 0.25 * repairMult(p) / R.RepairTime)
+				if not g.done and next(g.repairers) then
+					local rate = 0
+					local last = nil
+					for p in pairs(g.repairers) do
+						local char = p.Character
+						local hrp = char and char:FindFirstChild("HumanoidRootPart")
+						if not p.Parent or not isAlive(p) or not hrp or (hrp.Position - g.slot.Position).Magnitude > REPAIR_REACH then
+							stopRepair(g, p)
+						else
+							-- каждый следующий помощник даёт чуть меньше
+							rate += repairMult(p) * (rate > 0 and 0.75 or 1)
+							last = p
+						end
+					end
+					if last then
+						g.progress = math.min(1, g.progress + STEP * rate / repairTime())
 						setIndicators(g)
-						p:SetAttribute("RepairProgress", g.progress)
+						for p in pairs(g.repairers) do
+							p:SetAttribute("RepairProgress", g.progress)
+						end
 						if math.random() < 0.3 then
-							FS.emitNoise(p, g.slot.Position, "interact")
+							FS.emitNoise(last, g.slot.Position, "interact")
+						end
+						if g.progress >= 1 then
+							generatorDone(g, last)
 						end
 					end
 				end
@@ -627,10 +796,13 @@ end
 
 -- ИГРОКИ -----------------------------------------------------------------
 local function dropFuse(player, position)
-	if player:GetAttribute("Fuse") then
-		player:SetAttribute("Fuse", false)
+	local n = player:GetAttribute("Fuses") or 0
+	if n > 0 then
+		player:SetAttribute("Fuses", 0)
 		if position then
-			makeFuse(position - Vector3.new(0, 2.6, 0))
+			for i = 1, n do
+				makeFuse(position - Vector3.new(0, 2.6, 0) + Vector3.new((i - 1) * 1.2, 0, 0))
+			end
 		end
 	end
 end
@@ -677,7 +849,7 @@ local function killPlayer(player)
 	s.xp += Config.Rewards.Death.xp
 	player:SetAttribute("Dead", true)
 	player:SetAttribute("Caught", false)
-	player:SetAttribute("Repairing", nil)
+	stopAllRepairs(player)
 	FS.setOn(player, false)
 	if char then
 		-- тело остаётся лежать — страшная находка для других
@@ -747,6 +919,8 @@ local function onPlayer(player)
 	player.CameraMode = Enum.CameraMode.LockFirstPerson
 	player.CameraMaxZoomDistance = 0.5
 	watchBattery(player)
+	player:SetAttribute("Fuses", 0)
+	player:SetAttribute("Notes", "")
 	if round and not round.ended then
 		-- опоздавший: если раунд идёт < 90 сек, запускаем в игру, иначе зритель
 		round.players[player] = { alive = false, escaped = false, fuses = 0, generators = 0, coins = 0, xp = 0, joined = os.clock() }
@@ -767,9 +941,10 @@ end
 
 Players.PlayerRemoving:Connect(function(player)
 	exitLocker(player)
+	stopAllRepairs(player)
 	if round then
 		local s = round.players[player]
-		if s and player:GetAttribute("Fuse") then
+		if s and (player:GetAttribute("Fuses") or 0) > 0 then
 			local char = player.Character
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			dropFuse(player, hrp and hrp.Position)
@@ -980,7 +1155,8 @@ local function runRound()
 	for _, player in ipairs(Players:GetPlayers()) do
 		round.players[player] = { alive = true, escaped = false, fuses = 0, generators = 0, coins = 0, xp = 0, joined = os.clock() }
 		player:SetAttribute("Battery", 100)
-		player:SetAttribute("Fuse", false)
+		player:SetAttribute("Fuses", 0)
+		player:SetAttribute("Notes", "")
 		player:SetAttribute("FlashlightOn", false)
 		player:SetAttribute("AlreadySaved", nil)
 		local spare = player:GetAttribute("Perk_battery")

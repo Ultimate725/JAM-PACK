@@ -8,6 +8,7 @@ local Config = require(script.Parent.Config)
 local Sound = {}
 
 local MUSIC_KEYS = { MenuMusic = true, Ambience = true, AmbienceMorgue = true, AmbienceForest = true, Wind = true }
+local STEP_KEYS = { FootstepConcrete = true, FootstepWood = true, FootstepGrass = true, FootstepMetal = true }
 
 local function ensureGroup(parent, name)
 	local g = parent:FindFirstChild(name)
@@ -27,7 +28,26 @@ end
 local master = ensureGroup(SoundService, "Master")
 local musicGroup = ensureGroup(master, "Music")
 local sfxGroup = ensureGroup(master, "SFX")
-Sound.groups = { master = master, music = musicGroup, sfx = sfxGroup }
+-- шаги идут через свою группу с эхом и реверберацией (вложена в SFX — ползунок эффектов действует)
+local stepGroup = ensureGroup(sfxGroup, "Footsteps")
+local function ensureEffect(name, className, props)
+	local e = stepGroup:FindFirstChild(name)
+	if not e and RunService:IsClient() then
+		e = stepGroup:WaitForChild(name, 5)
+	end
+	if not e and RunService:IsServer() then
+		e = Instance.new(className)
+		e.Name = name
+		for k, v in pairs(props) do
+			e[k] = v
+		end
+		e.Parent = stepGroup
+	end
+	return e
+end
+local echo = ensureEffect("Echo", "EchoSoundEffect", { Delay = 0.22, Feedback = 0.3, DryLevel = 0, WetLevel = -7, Priority = 1 })
+local reverbFx = ensureEffect("Reverb", "ReverbSoundEffect", { DecayTime = 1.6, Density = 1, Diffusion = 1, DryLevel = 0, WetLevel = -9, Priority = 2 })
+Sound.groups = { master = master, music = musicGroup, sfx = sfxGroup, steps = stepGroup }
 
 function Sound.id(key)
 	local v = Config.Sounds[key]
@@ -52,7 +72,7 @@ function Sound.make(key, parent, props)
 	s.RollOffMode = Enum.RollOffMode.InverseTapered
 	s.RollOffMinDistance = 8
 	s.RollOffMaxDistance = 90
-	s.SoundGroup = MUSIC_KEYS[key] and musicGroup or sfxGroup
+	s.SoundGroup = MUSIC_KEYS[key] and musicGroup or (STEP_KEYS[key] and stepGroup or sfxGroup)
 	if props then
 		for k, v in pairs(props) do
 			s[k] = v
@@ -97,6 +117,29 @@ function Sound.setVolumes(masterV, musicV, sfxV)
 		musicGroup.Volume = math.clamp(musicV or 1, 0, 1)
 		sfxGroup.Volume = math.clamp(sfxV or 1, 0, 1)
 	end
+end
+
+-- эхо шагов под помещение (клиент, локально): "hall" | "tiles" | "outdoor" | "lobby"
+local SPACES = {
+	hall = { delay = 0.24, feedback = 0.32, wet = -7, decay = 1.8, reverbWet = -9, ambient = Enum.ReverbType.StoneCorridor },
+	tiles = { delay = 0.15, feedback = 0.45, wet = -4, decay = 2.6, reverbWet = -6, ambient = Enum.ReverbType.Cave },
+	outdoor = { delay = 0.38, feedback = 0.12, wet = -16, decay = 0.9, reverbWet = -16, ambient = Enum.ReverbType.Forest },
+	lobby = { delay = 0.2, feedback = 0.28, wet = -8, decay = 1.5, reverbWet = -10, ambient = Enum.ReverbType.Hallway },
+}
+function Sound.setSpace(name)
+	local sp = SPACES[name] or SPACES.hall
+	if echo then
+		echo.Delay = sp.delay
+		echo.Feedback = sp.feedback
+		echo.WetLevel = sp.wet
+	end
+	if reverbFx then
+		reverbFx.DecayTime = sp.decay
+		reverbFx.WetLevel = sp.reverbWet
+	end
+	pcall(function()
+		SoundService.AmbientReverb = sp.ambient
+	end)
 end
 
 return Sound

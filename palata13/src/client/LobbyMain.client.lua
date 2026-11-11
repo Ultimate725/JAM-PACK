@@ -24,6 +24,9 @@ local ClientData = require(Shared:WaitForChild("ClientData"))
 local BattlePass = require(Shared:WaitForChild("BattlePass"))
 local FL = require(Shared:WaitForChild("FlashlightClient"))
 local Animator = require(Shared:WaitForChild("MonsterAnimator"))
+local Footsteps = require(Shared:WaitForChild("Footsteps"))
+Footsteps.start()
+Sound.setSpace("lobby")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local Colors = UI.Colors
 

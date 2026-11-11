@@ -19,6 +19,8 @@ local UI = require(Shared:WaitForChild("UI"))
 local ClientData = require(Shared:WaitForChild("ClientData"))
 local Animator = require(Shared:WaitForChild("MonsterAnimator"))
 local FL = require(Shared:WaitForChild("FlashlightClient"))
+local Footsteps = require(Shared:WaitForChild("Footsteps"))
+local RepairAnim = require(Shared:WaitForChild("RepairAnim"))
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local P = Config.Player
@@ -164,22 +166,208 @@ local timerLabel = UI.label({
 	ZIndex = 5,
 	Parent = gui,
 })
-local carryLabel = UI.label({
-	Text = "⚡ У ТЕБЯ ПРЕДОХРАНИТЕЛЬ — ВСТАВЬ ЕГО В ГЕНЕРАТОР",
-	Font = UI.FontBold,
-	TextSize = 16,
-	TextColor3 = Colors.Gold,
-	TextXAlignment = Enum.TextXAlignment.Center,
-	Size = UDim2.fromOffset(560, 22),
-	Position = UDim2.new(0.5, 0, 0, 72),
-	AnchorPoint = Vector2.new(0.5, 0),
-	TextStrokeTransparency = 0.4,
-	Visible = false,
+-- ИНВЕНТАРЬ: панель внизу экрана. Батарейки сюда не кладутся — они сразу уходят в фонарик.
+local INV_SLOT = 64
+local invBar = UI.new("Frame", {
+	Name = "Inventory",
+	Size = UDim2.fromOffset(Config.InventorySlots * (INV_SLOT + 8) + 8, INV_SLOT + 16),
+	Position = UDim2.new(0.5, 0, 1, -26),
+	AnchorPoint = Vector2.new(0.5, 1),
+	BackgroundColor3 = Color3.fromRGB(10, 6, 6),
+	BackgroundTransparency = 0.35,
+	BorderSizePixel = 0,
 	ZIndex = 5,
 	Parent = gui,
+}, { UI.corner(6), UI.stroke(Color3.fromRGB(90, 30, 30), 1, 0.3) })
+local invTip = UI.label({
+	Text = "",
+	Font = UI.FontMono,
+	TextSize = 13,
+	TextColor3 = Colors.Text,
+	TextXAlignment = Enum.TextXAlignment.Center,
+	TextStrokeTransparency = 0.4,
+	Size = UDim2.fromOffset(520, 18),
+	Position = UDim2.new(0.5, 0, 0, -6),
+	AnchorPoint = Vector2.new(0.5, 1),
+	TextTransparency = 1,
+	ZIndex = 6,
+	Parent = invBar,
 })
+local invSlots = {}
+local tipToken = 0
+local function showTip(text)
+	tipToken += 1
+	local my = tipToken
+	invTip.Text = text
+	invTip.TextTransparency = 0
+	task.delay(3, function()
+		if tipToken == my then
+			UI.tween(invTip, 0.6, { TextTransparency = 1 })
+		end
+	end)
+end
+for i = 1, Config.InventorySlots do
+	local slot = UI.new("TextButton", {
+		Name = "Slot" .. i,
+		Text = "",
+		AutoButtonColor = false,
+		Size = UDim2.fromOffset(INV_SLOT, INV_SLOT),
+		Position = UDim2.fromOffset(8 + (i - 1) * (INV_SLOT + 8), 8),
+		BackgroundColor3 = Color3.fromRGB(24, 16, 16),
+		BorderSizePixel = 0,
+		ZIndex = 6,
+		Parent = invBar,
+	}, { UI.corner(4) })
+	local stroke = UI.stroke(Color3.fromRGB(70, 40, 40), 1, 0.2)
+	stroke.Parent = slot
+	UI.label({ Text = tostring(i), Font = UI.FontMono, TextSize = 11, TextColor3 = Colors.Dim, Size = UDim2.fromOffset(14, 14), Position = UDim2.fromOffset(4, 2), ZIndex = 7, Parent = slot })
+	local icon = UI.label({ Text = "", TextSize = 28, Font = UI.FontBold, TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 6), ZIndex = 7, Parent = slot })
+	local name = UI.label({ Text = "", Font = UI.FontMono, TextSize = 9, TextColor3 = Colors.Dim, TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.new(1, 0, 0, 12), Position = UDim2.new(0, 0, 1, -15), ZIndex = 7, Parent = slot })
+	local count = UI.label({ Text = "", Font = UI.FontBold, TextSize = 14, TextColor3 = Colors.Text, TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.fromOffset(24, 16), Position = UDim2.new(1, -28, 0, 2), ZIndex = 7, Parent = slot })
+	invSlots[i] = { frame = slot, stroke = stroke, icon = icon, name = name, count = count, item = nil, n = 0 }
+end
+
+-- читалка записок
+local notesWin = UI.new("Frame", {
+	Name = "Notes",
+	Size = UDim2.fromOffset(520, 360),
+	Position = UDim2.fromScale(0.5, 0.45),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundColor3 = Color3.fromRGB(214, 204, 178),
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 30,
+	Parent = gui,
+}, { UI.corner(3), UI.stroke(Color3.fromRGB(60, 20, 20), 2, 0) })
+local noteTitle = UI.label({ Text = "", Font = UI.FontTitle, TextSize = 22, TextColor3 = Color3.fromRGB(90, 8, 10), TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 12), ZIndex = 31, Parent = notesWin })
+local noteText = UI.label({ Text = "", Font = UI.FontText, TextSize = 20, TextColor3 = Color3.fromRGB(30, 24, 20), TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, Size = UDim2.new(1, -60, 1, -110), Position = UDim2.fromOffset(30, 56), ZIndex = 31, Parent = notesWin })
+local noteIds, noteIndex = {}, 1
+local function mapNotes()
+	return Config.Notes[workspace:GetAttribute("Map")] or {}
+end
+local function renderNote()
+	local id = noteIds[noteIndex]
+	if not id then
+		noteTitle.Text = "ЗАПИСОК НЕТ"
+		noteText.Text = "Ищи обрывки бумаги на полу — на них история этого места."
+		return
+	end
+	noteTitle.Text = string.format("ЗАПИСКА %d  ·  %d/%d", id, noteIndex, #noteIds)
+	noteText.Text = mapNotes()[id] or ""
+end
+local function refreshNoteIds()
+	noteIds = {}
+	for id in string.gmatch(player:GetAttribute("Notes") or "", "%d+") do
+		table.insert(noteIds, tonumber(id))
+	end
+end
+local function openNotes(focusId)
+	refreshNoteIds()
+	noteIndex = 1
+	for i, id in ipairs(noteIds) do
+		if id == focusId then
+			noteIndex = i
+		end
+	end
+	renderNote()
+	notesWin.Visible = true
+end
+local function closeNotes()
+	notesWin.Visible = false
+end
+UI.button({ Text = "<", Size = UDim2.fromOffset(44, 32), Position = UDim2.new(0, 20, 1, -46), ZIndex = 32, Parent = notesWin }, function()
+	noteIndex = math.max(1, noteIndex - 1)
+	renderNote()
+end)
+UI.button({ Text = ">", Size = UDim2.fromOffset(44, 32), Position = UDim2.new(1, -64, 1, -46), ZIndex = 32, Parent = notesWin }, function()
+	noteIndex = math.min(math.max(1, #noteIds), noteIndex + 1)
+	renderNote()
+end)
+UI.button({ Text = "ЗАКРЫТЬ", Size = UDim2.fromOffset(140, 32), Position = UDim2.new(0.5, -70, 1, -46), ZIndex = 32, Parent = notesWin }, closeNotes)
+
+local function itemCount(item)
+	if item.id == "Notes" then
+		local n = 0
+		for _ in string.gmatch(player:GetAttribute("Notes") or "", "%d+") do
+			n += 1
+		end
+		return n
+	end
+	return player:GetAttribute(item.id) or 0
+end
+
+local function useSlot(i)
+	local s = invSlots[i]
+	if not s or not s.item then
+		return
+	end
+	if s.item.id == "Notes" then
+		if notesWin.Visible then
+			closeNotes()
+		else
+			openNotes()
+		end
+	else
+		showTip(s.item.name .. " ×" .. s.n .. " — " .. s.item.desc)
+	end
+end
+for i, s in ipairs(invSlots) do
+	s.frame.Activated:Connect(function()
+		useSlot(i)
+	end)
+end
+
+-- предметы занимают слоты по порядку появления, пустые слоты сдвигаются
+local function refreshInventory()
+	local filled = {}
+	for _, item in ipairs(Config.Items) do
+		local n = itemCount(item)
+		if n > 0 then
+			table.insert(filled, { item = item, n = n })
+		end
+	end
+	for i, s in ipairs(invSlots) do
+		local f = filled[i]
+		local changed = f and (s.item ~= f.item or f.n > s.n)
+		s.item = f and f.item
+		s.n = f and f.n or 0
+		s.icon.Text = f and f.item.icon or ""
+		s.name.Text = f and f.item.name or ""
+		s.count.Text = (f and f.n > 1) and ("×" .. f.n) or ""
+		s.stroke.Color = f and f.item.color or Color3.fromRGB(70, 40, 40)
+		s.frame.BackgroundColor3 = f and Color3.fromRGB(40, 24, 20) or Color3.fromRGB(24, 16, 16)
+		if changed then
+			-- вспышка слота при подборе
+			s.frame.BackgroundColor3 = f.item.color
+			UI.tween(s.frame, 0.5, { BackgroundColor3 = Color3.fromRGB(40, 24, 20) })
+		end
+	end
+end
+player:GetAttributeChangedSignal("Fuses"):Connect(refreshInventory)
+player:GetAttributeChangedSignal("Notes"):Connect(refreshInventory)
+refreshInventory()
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then
+		return
+	end
+	local idx = ({ [Enum.KeyCode.One] = 1, [Enum.KeyCode.Two] = 2, [Enum.KeyCode.Three] = 3, [Enum.KeyCode.Four] = 4 })[input.KeyCode]
+	if idx then
+		useSlot(idx)
+	elseif input.KeyCode == Enum.KeyCode.Tab or input.KeyCode == Enum.KeyCode.N then
+		if notesWin.Visible then
+			closeNotes()
+		else
+			openNotes()
+		end
+	elseif notesWin.Visible and (input.KeyCode == Enum.KeyCode.Left or input.KeyCode == Enum.KeyCode.Right) then
+		noteIndex = math.clamp(noteIndex + (input.KeyCode == Enum.KeyCode.Left and -1 or 1), 1, math.max(1, #noteIds))
+		renderNote()
+	end
+end)
+
 local hint = UI.label({
-	Text = UserInputService.TouchEnabled and "кнопки справа: свет / бег / присесть" or "F — фонарик   ·   SHIFT — бег   ·   C — присесть   ·   E — взаимодействие   ·   M — настройки",
+	Text = UserInputService.TouchEnabled and "кнопки справа: свет / бег / присесть · инвентарь внизу" or "F — фонарик · SHIFT — бег · C — присесть · E — взаимодействие · 1-4 — предметы · TAB — записки · M — настройки",
 	Font = UI.FontMono,
 	TextSize = 13,
 	TextColor3 = Colors.Dim,
@@ -206,7 +394,7 @@ local repairHolder = UI.new("Frame", {
 	Parent = gui,
 })
 UI.label({
-	Text = "ЧИНИШЬ ГЕНЕРАТОР — ЭТО ШУМНО",
+	Text = "ЧИНИШЬ ГЕНЕРАТОР — ЭТО ШУМНО  ·  E — ВСТАТЬ",
 	Font = UI.FontMono,
 	TextSize = 14,
 	TextColor3 = Colors.Gold,
@@ -416,6 +604,8 @@ Remotes.RoundUpdate.OnClientEvent:Connect(function(kind, a, b)
 		end
 	elseif kind == "intro" then
 		showIntro(a, b)
+	elseif kind == "note" then
+		openNotes(a)
 	end
 end)
 workspace:GetAttributeChangedSignal("RoundState"):Connect(function()
@@ -567,6 +757,36 @@ local function startMapExtras()
 	end
 end
 startMapExtras()
+
+-- ШАГИ И ЭХО ---------------------------------------------------------------
+Footsteps.start()
+RepairAnim.start()
+RepairAnim.onRatchet = function()
+	shake = math.max(shake, 0.12)
+end
+-- эхо по карте; без потолка над головой (двор, лес) — открытое пространство
+local MAP_SPACE = { Hospital = "hall", Morgue = "tiles", Sanatorium = "hall" }
+local roofParams = RaycastParams.new()
+roofParams.FilterType = Enum.RaycastFilterType.Exclude
+local currentSpace = nil
+task.spawn(function()
+	while true do
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local space = MAP_SPACE[workspace:GetAttribute("Map")] or "hall"
+		if hrp then
+			roofParams.FilterDescendantsInstances = { char }
+			if not workspace:Raycast(hrp.Position, Vector3.new(0, 60, 0), roofParams) then
+				space = "outdoor"
+			end
+		end
+		if space ~= currentSpace then
+			currentSpace = space
+			Sound.setSpace(space)
+		end
+		task.wait(0.5)
+	end
+end)
 workspace:GetAttributeChangedSignal("Map"):Connect(startMapExtras)
 task.spawn(function()
 	while true do
@@ -1120,6 +1340,7 @@ end)
 -- ГЛАВНЫЙ ЦИКЛ ------------------------------------------------------------
 local specTimer = 0
 local camCrouch = 0
+local wasRepairing = false
 RunService.RenderStepped:Connect(function(dt)
 	local char = player.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -1131,8 +1352,9 @@ RunService.RenderStepped:Connect(function(dt)
 
 	if hum and hrp and hum.Health > 0 and not scaring and not dead then
 		local moving = hum.MoveDirection.Magnitude > 0.1
+		local repairingNow = player:GetAttribute("Repairing") ~= nil
 		local staminaMax = P.StaminaMax * (player:GetAttribute("Perk_stamina") or 1)
-		local want = sprintHeld and moving and not exhausted and not hiding
+		local want = sprintHeld and moving and not exhausted and not hiding and not repairingNow
 		if want and crouching then
 			setCrouch(false)
 		end
@@ -1166,17 +1388,30 @@ RunService.RenderStepped:Connect(function(dt)
 		elseif crouching then
 			speed = P.CrouchSpeed
 		end
+		if repairingNow then
+			-- у генератора персонаж стоит на колене и не двигается
+			speed = 0
+			hum.JumpPower = 0
+			wasRepairing = true
+			if crouching then
+				setCrouch(false)
+			end
+		elseif wasRepairing then
+			wasRepairing = false
+			hum.JumpPower = 38
+		end
 		hum.WalkSpeed = speed
 
 		-- покачивание камеры при ходьбе + тряска от шагов монстра + присядка
-		if moving and hum.FloorMaterial ~= Enum.Material.Air then
+		if moving and hum.FloorMaterial ~= Enum.Material.Air and not repairingNow then
 			bobT += dt * (sprinting and 13 or (crouching and 6 or 8.5))
 		end
-		local amp = moving and (sprinting and 0.2 or (crouching and 0.05 or 0.09)) or 0
+		local amp = (moving and not repairingNow) and (sprinting and 0.2 or (crouching and 0.05 or 0.09)) or 0
 		local bob = Vector3.new(math.sin(bobT) * amp, math.abs(math.cos(bobT)) * amp * 1.3, 0)
 		shake = math.max(0, shake - dt * 2.5)
 		local sh = Vector3.new(math.random() - 0.5, math.random() - 0.5, 0) * shake * 0.5
-		camCrouch += ((crouching and -1.45 or 0) - camCrouch) * math.min(1, dt * 8)
+		local camTarget = repairingNow and RepairAnim.kneelOffset or (crouching and -1.45 or 0)
+		camCrouch += (camTarget - camCrouch) * math.min(1, dt * 8)
 		hum.CameraOffset = hum.CameraOffset:Lerp(bob + sh + Vector3.new(0, camCrouch, 0), math.min(1, dt * 12))
 		local targetFov = sprinting and 80 or (crouching and 64 or 70)
 		cam.FieldOfView += (targetFov - cam.FieldOfView) * math.min(1, dt * 6)
@@ -1251,8 +1486,11 @@ RunService.RenderStepped:Connect(function(dt)
 	local left = workspace:GetAttribute("TimeLeft") or 0
 	timerLabel.Text = string.format("%02d:%02d", math.floor(left / 60), left % 60)
 	timerLabel.TextColor3 = left < 60 and Colors.BrightRed or Colors.Dim
-	carryLabel.Visible = player:GetAttribute("Fuse") == true and not dead
 	lockerOverlay.Visible = hiding and not scaring
+	invBar.Visible = not dead
+	if dead and notesWin.Visible then
+		closeNotes()
+	end
 	fl.disabled = scaring or hiding or dead
 	fl.steady = player:GetAttribute("Perk_nerves") == 1
 

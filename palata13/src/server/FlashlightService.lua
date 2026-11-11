@@ -47,17 +47,18 @@ function FS.setOn(player, on)
 	end
 end
 
--- ПРИСЯДКА: поза через Motor6D.C0 (видно другим игрокам), скорость ставит клиент
+-- ПРИСЯДКА: поза через Motor6D.C0 (видно другим игрокам), скорость ставит клиент.
+-- Знак X: +X поворачивает ногу/руку вперёд, а корпус/голову — НАЗАД; поэтому наклон корпуса вперёд = -X.
 local CROUCH_POSE = {
-	Root = { CFrame.new(0, -0.6, 0) * CFrame.Angles(0.1, 0, 0) },
-	Waist = { CFrame.Angles(0.35, 0, 0) },
+	Root = { CFrame.new(0, -0.6, 0) * CFrame.Angles(-0.1, 0, 0) },
+	Waist = { CFrame.Angles(-0.35, 0, 0) },
 	LeftHip = { CFrame.Angles(0.95, 0, 0) },
 	RightHip = { CFrame.Angles(0.95, 0, 0) },
 	LeftKnee = { CFrame.Angles(-1.35, 0, 0) },
 	RightKnee = { CFrame.Angles(-1.35, 0, 0) },
 	LeftAnkle = { CFrame.Angles(0.4, 0, 0) },
 	RightAnkle = { CFrame.Angles(0.4, 0, 0) },
-	RootJoint = { CFrame.new(0, -0.7, 0) * CFrame.Angles(0.25, 0, 0) }, -- R6
+	RootJoint = { CFrame.new(0, -0.7, 0) * CFrame.Angles(-0.25, 0, 0) }, -- R6
 }
 local baseC0 = {} -- [motor] = C0 до присядки
 

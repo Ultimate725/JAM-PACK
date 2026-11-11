@@ -26,7 +26,7 @@ SRC = os.path.join(HERE, "src")
 DIST = os.path.join(HERE, "dist")
 
 # script name -> (source file, class)
-SHARED = ["BattlePass", "ClientData", "Config", "FlashlightClient", "MonsterAnimator", "Sound", "UI"]
+SHARED = ["BattlePass", "ClientData", "Config", "FlashlightClient", "Footsteps", "MonsterAnimator", "RepairAnim", "Sound", "UI"]
 CORE = ["BattlePassService", "DataService", "FlashlightService", "Remotes", "ShopService"]
 
 
@@ -61,6 +61,8 @@ def install_scripts(root, doc, place):
     sss = X.path(root, "ServerScriptService")
     sps = X.path(root, "StarterPlayer/StarterPlayerScripts")
     put_script(doc, sps, "LocalScript", "Signs", read_src("client/Signs.client.lua"))
+    # пустой RbxCharacterSounds отключает стандартные шаги Roblox — свои шаги с эхом в Shared/Footsteps
+    put_script(doc, sps, "LocalScript", "RbxCharacterSounds", "-- отключено: шаги и эхо — ReplicatedStorage.Shared.Footsteps\n")
     if place == "lobby":
         put_script(doc, sss, "Script", "Main", read_src("server/LobbyMain.server.lua"))
         put_script(doc, sps, "LocalScript", "Main", read_src("client/LobbyMain.client.lua"))
@@ -86,6 +88,14 @@ def sound_groups(root, doc):
         master = X.item(doc, "SoundGroup", "Master", [("float", "Volume", 1)], parent=ss)
         X.item(doc, "SoundGroup", "Music", [("float", "Volume", 1)], parent=master)
         X.item(doc, "SoundGroup", "SFX", [("float", "Volume", 1)], parent=master)
+    sfx = X.child(master, "SFX")
+    if X.child(sfx, "Footsteps") is None:
+        steps = X.item(doc, "SoundGroup", "Footsteps", [("float", "Volume", 1)], parent=sfx)
+        X.item(doc, "EchoSoundEffect", "Echo", [("float", "Delay", 0.22), ("float", "Feedback", 0.3), ("float", "DryLevel", 0),
+                                                ("float", "WetLevel", -7), ("int", "Priority", 1), ("bool", "Enabled", True)], parent=steps)
+        X.item(doc, "ReverbSoundEffect", "Reverb", [("float", "DecayTime", 1.6), ("float", "Density", 1), ("float", "Diffusion", 1),
+                                                    ("float", "DryLevel", 0), ("float", "WetLevel", -9), ("int", "Priority", 2),
+                                                    ("bool", "Enabled", True)], parent=steps)
 
 
 def build_lobby(check):

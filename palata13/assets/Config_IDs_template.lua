@@ -35,6 +35,11 @@ Config.Sounds = {
 	Wind = 0, -- Sounds/Wind.ogg (loop)
 	Crow = 0, -- Sounds/Crow.ogg
 	Bell = 0, -- Sounds/Bell.ogg
+	FootstepConcrete = 0, -- Sounds/FootstepConcrete.ogg
+	FootstepWood = 0, -- Sounds/FootstepWood.ogg
+	FootstepGrass = 0, -- Sounds/FootstepGrass.ogg
+	FootstepMetal = 0, -- Sounds/FootstepMetal.ogg
+	Paper = 0, -- Sounds/Paper.ogg
 }
 
 -- Game passes (Creator Hub > your game > Monetization > Passes). Icons: Store/GamePass_*.png

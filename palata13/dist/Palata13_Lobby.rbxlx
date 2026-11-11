@@ -1455,6 +1455,11 @@ Config.Sounds = {
 	Wind = 0,
 	Crow = 0,
 	Bell = 0,
+	FootstepConcrete = 0, -- шаги игрока (с эхом)
+	FootstepWood = 0,
+	FootstepGrass = 0,
+	FootstepMetal = 0,
+	Paper = 0, -- записка
 }
 
 -- 3) МАГАЗИН ЗА РОБУКСЫ ----------------------------------------------------
@@ -1545,6 +1550,7 @@ Config.Rewards = {
 	Death = { coins = 20, xp = 40 },
 	Fuse = { coins = 15, xp = 25 },
 	Generator = { coins = 30, xp = 40 },
+	Note = { coins = 5, xp = 10 },
 	SurviveXPPer10s = 1,
 }
 
@@ -1610,6 +1616,7 @@ Config.Difficulties = {
 		timeLimit = 1080,
 		sonar = 0,
 		sense = 4,
+		repair = 32, -- секунд починки генератора одним игроком
 		xpMult = 0.8,
 		coinMult = 0.8,
 	},
@@ -1631,6 +1638,7 @@ Config.Difficulties = {
 		timeLimit = 900,
 		sonar = 0,
 		sense = 5,
+		repair = 40,
 		xpMult = 1,
 		coinMult = 1,
 	},
@@ -1652,6 +1660,7 @@ Config.Difficulties = {
 		timeLimit = 840,
 		sonar = 0,
 		sense = 7,
+		repair = 48,
 		xpMult = 1.4,
 		coinMult = 1.4,
 	},
@@ -1673,6 +1682,7 @@ Config.Difficulties = {
 		timeLimit = 780,
 		sonar = 30, -- секунд между эхо-криками (0 = нет)
 		sense = 9,
+		repair = 55,
 		xpMult = 2,
 		coinMult = 2,
 	},
@@ -1686,7 +1696,8 @@ Config.Round = {
 	MonsterWakeDelay = 25,
 	ReturnToLobbyDelay = 12,
 	WaitForPlayers = 15,
-	RepairTime = 14, -- секунд удержания на одном генераторе
+	RepairTime = 40, -- секунд починки одного генератора одним игроком (на сложности см. repair)
+	MaxFuses = 2, -- сколько предохранителей помещается в инвентарь
 	IntroTime = 9, -- показ сюжета карты
 }
 
@@ -1715,6 +1726,39 @@ Config.Player = {
 	BatteryDrainPerSec = 0.55,
 	-- шум игрока (множитель к радиусу слуха монстра)
 	Noise = { crouch = 1, walk = 1, sprint = 1 },
+}
+
+-- хелперы ------------------------------------------------------------------
+-- 10) ИНВЕНТАРЬ (нижняя панель). Батарейки сюда не попадают — они сразу идут в фонарик.
+Config.Items = {
+	{ id = "Fuses", name = "ПРЕДОХРАНИТЕЛЬ", icon = "⚡", color = Color3.fromRGB(255, 190, 60), desc = "Вставь в генератор (E). Носить можно не больше 2." },
+	{ id = "Notes", name = "ЗАПИСКИ", icon = "📜", color = Color3.fromRGB(214, 204, 178), desc = "Обрывки истории этого места. Нажми, чтобы прочитать." },
+}
+Config.InventorySlots = 4
+
+-- 11) ЗАПИСКИ — сюжет каждой карты (лежат на полу, E — взять)
+Config.Notes = {
+	Hospital = {
+		"12 окт. 1987. Пациента из 13-й перевели на «интенсивную терапию». Главврач велел не записывать дозы. Я записываю.",
+		"Третий сеанс тока. Он перестал кричать и начал смотреть. Не на нас — сквозь стены. Медсестра Л. говорит, что он слышит, как мы дышим.",
+		"Свет отключили в 3:13. Генераторы в крыльях не запускаются сами — кто-то вынул предохранители. Ворота во двор на электрозамке.",
+		"Если ты это читаешь — не свети ему в лицо. Он идёт на свет. И не беги. Бег он слышит через три этажа.",
+		"Я заперся в шкафчике. Он прошёл мимо. Потом вернулся. Он всегда возвращается, если видел, куда ты спрятался.",
+	},
+	Morgue = {
+		"Журнал санитара. Тело №13 поступило без бирки. Тёплое. Через шесть часов — всё ещё тёплое. Кремацию назначили на утро.",
+		"Ночью из холодильника стучали. Ящик 13. Открыл — пусто, внутри царапины. Свежие. С ИЗНАНКИ двери.",
+		"Печь не разжигать! Петров разжёг. Петрова больше нет. В пепле нашли его часы и кусок больничной рубашки. Не его.",
+		"Грузовой лифт — единственный выход, лестница завалена. Лифт на отдельном питании: котельная, прачечная, мастерская, насосная.",
+		"Оно не видит в темноте подвала. Оно слушает. Если оно остановилось и наклонило голову — замри. Не дыши.",
+	},
+	Sanatorium = {
+		"Санаторий «Сосны», детский корпус. Отчёт: после процедур дети спят лучше. Все, кроме Миши из 13-й. Миша рисует высокого человека.",
+		"Миша говорит, что высокий человек живёт в котельной и просит открыть дверь. Котельную закрыли на ключ. Ключ пропал.",
+		"Колокол в часовне звонил в 3:13. Звонаря у нас нет с 1979 года. Утром на полу часовни — мокрые следы босых ног. Большие.",
+		"Забор под напряжением, ворота открываются только от генераторов. Без тока отсюда не выйти. Я спрятал предохранители по корпусам.",
+		"Не бегите по листьям. Оно слышит. Дети знали это. Дети никогда не бегали. Поэтому их так долго не могли найти.",
+	},
 }
 
 -- хелперы ------------------------------------------------------------------
@@ -2210,6 +2254,7 @@ local Config = require(script.Parent.Config)
 local Sound = {}
 
 local MUSIC_KEYS = { MenuMusic = true, Ambience = true, AmbienceMorgue = true, AmbienceForest = true, Wind = true }
+local STEP_KEYS = { FootstepConcrete = true, FootstepWood = true, FootstepGrass = true, FootstepMetal = true }
 
 local function ensureGroup(parent, name)
 	local g = parent:FindFirstChild(name)
@@ -2229,7 +2274,26 @@ end
 local master = ensureGroup(SoundService, "Master")
 local musicGroup = ensureGroup(master, "Music")
 local sfxGroup = ensureGroup(master, "SFX")
-Sound.groups = { master = master, music = musicGroup, sfx = sfxGroup }
+-- шаги идут через свою группу с эхом и реверберацией (вложена в SFX — ползунок эффектов действует)
+local stepGroup = ensureGroup(sfxGroup, "Footsteps")
+local function ensureEffect(name, className, props)
+	local e = stepGroup:FindFirstChild(name)
+	if not e and RunService:IsClient() then
+		e = stepGroup:WaitForChild(name, 5)
+	end
+	if not e and RunService:IsServer() then
+		e = Instance.new(className)
+		e.Name = name
+		for k, v in pairs(props) do
+			e[k] = v
+		end
+		e.Parent = stepGroup
+	end
+	return e
+end
+local echo = ensureEffect("Echo", "EchoSoundEffect", { Delay = 0.22, Feedback = 0.3, DryLevel = 0, WetLevel = -7, Priority = 1 })
+local reverbFx = ensureEffect("Reverb", "ReverbSoundEffect", { DecayTime = 1.6, Density = 1, Diffusion = 1, DryLevel = 0, WetLevel = -9, Priority = 2 })
+Sound.groups = { master = master, music = musicGroup, sfx = sfxGroup, steps = stepGroup }
 
 function Sound.id(key)
 	local v = Config.Sounds[key]
@@ -2254,7 +2318,7 @@ function Sound.make(key, parent, props)
 	s.RollOffMode = Enum.RollOffMode.InverseTapered
 	s.RollOffMinDistance = 8
 	s.RollOffMaxDistance = 90
-	s.SoundGroup = MUSIC_KEYS[key] and musicGroup or sfxGroup
+	s.SoundGroup = MUSIC_KEYS[key] and musicGroup or (STEP_KEYS[key] and stepGroup or sfxGroup)
 	if props then
 		for k, v in pairs(props) do
 			s[k] = v
@@ -2299,6 +2363,29 @@ function Sound.setVolumes(masterV, musicV, sfxV)
 		musicGroup.Volume = math.clamp(musicV or 1, 0, 1)
 		sfxGroup.Volume = math.clamp(sfxV or 1, 0, 1)
 	end
+end
+
+-- эхо шагов под помещение (клиент, локально): "hall" | "tiles" | "outdoor" | "lobby"
+local SPACES = {
+	hall = { delay = 0.24, feedback = 0.32, wet = -7, decay = 1.8, reverbWet = -9, ambient = Enum.ReverbType.StoneCorridor },
+	tiles = { delay = 0.15, feedback = 0.45, wet = -4, decay = 2.6, reverbWet = -6, ambient = Enum.ReverbType.Cave },
+	outdoor = { delay = 0.38, feedback = 0.12, wet = -16, decay = 0.9, reverbWet = -16, ambient = Enum.ReverbType.Forest },
+	lobby = { delay = 0.2, feedback = 0.28, wet = -8, decay = 1.5, reverbWet = -10, ambient = Enum.ReverbType.Hallway },
+}
+function Sound.setSpace(name)
+	local sp = SPACES[name] or SPACES.hall
+	if echo then
+		echo.Delay = sp.delay
+		echo.Feedback = sp.feedback
+		echo.WetLevel = sp.wet
+	end
+	if reverbFx then
+		reverbFx.DecayTime = sp.decay
+		reverbFx.WetLevel = sp.reverbWet
+	end
+	pcall(function()
+		SoundService.AmbientReverb = sp.ambient
+	end)
 end
 
 return Sound
@@ -2860,7 +2947,303 @@ end
 
 return UI
 </ProtectedString></Properties></Item>
-</Item>
+<Item class="ModuleScript" referent="RBX00001B9E"><Properties><string name="Name">Footsteps</string><ProtectedString name="Source">--[[
+	Шаги персонажей (клиент): звук по материалу пола, ритм по скорости, громкость по режиму
+	(присед / шаг / бег). Звучат шаги всех игроков в 3D, с эхом группы SoundService.Master.SFX.Footsteps.
+	Стандартные шаги Roblox отключены пустым скриптом StarterPlayerScripts.RbxCharacterSounds.
+]]
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Sound = require(script.Parent.Sound)
+
+local Footsteps = {}
+
+local SOFT = {
+	[Enum.Material.Grass] = true,
+	[Enum.Material.LeafyGrass] = true,
+	[Enum.Material.Ground] = true,
+	[Enum.Material.Mud] = true,
+	[Enum.Material.Sand] = true,
+	[Enum.Material.Snow] = true,
+	[Enum.Material.Fabric] = true,
+}
+local WOOD = { [Enum.Material.Wood] = true, [Enum.Material.WoodPlanks] = true }
+local METAL = {
+	[Enum.Material.Metal] = true,
+	[Enum.Material.DiamondPlate] = true,
+	[Enum.Material.CorrodedMetal] = true,
+	[Enum.Material.Foil] = true,
+}
+
+local function keyFor(material)
+	if SOFT[material] then
+		return "FootstepGrass"
+	elseif WOOD[material] then
+		return "FootstepWood"
+	elseif METAL[material] then
+		return "FootstepMetal"
+	end
+	return "FootstepConcrete"
+end
+
+local timers = {} -- [character] = seconds until next step
+local side = {}
+
+local function step(player, char, hum, hrp, speed)
+	local crouch = player:GetAttribute("Crouching") == true
+	local sprint = player:GetAttribute("Sprinting") == true
+	local vol = crouch and 0.18 or (sprint and 0.95 or 0.55)
+	side[char] = not side[char]
+	Sound.play(keyFor(hum.FloorMaterial), hrp, {
+		Volume = vol * (0.9 + math.random() * 0.2),
+		PlaybackSpeed = (crouch and 0.92 or 1) * (0.92 + math.random() * 0.16) * (side[char] and 1 or 0.96),
+		RollOffMinDistance = crouch and 3 or 6,
+		RollOffMaxDistance = crouch and 20 or (sprint and 90 or 50),
+	})
+end
+
+local started = false
+function Footsteps.start()
+	if started then
+		return
+	end
+	started = true
+	RunService.Heartbeat:Connect(function(dt)
+		for _, player in ipairs(Players:GetPlayers()) do
+			local char = player.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if hum and hrp and hum.Health &gt; 0 then
+				local v = hrp.AssemblyLinearVelocity
+				local speed = Vector3.new(v.X, 0, v.Z).Magnitude
+				local moving = speed &gt; 2 and hum.FloorMaterial ~= Enum.Material.Air
+				if moving and not player:GetAttribute("Hiding") and not player:GetAttribute("Repairing") then
+					-- примерно 2.6 шага/с при ходьбе, чаще на бегу, реже в присяде
+					local interval = math.clamp(5.0 / speed, 0.24, 0.75)
+					timers[char] = (timers[char] or interval * 0.5) - dt
+					if timers[char] &lt;= 0 then
+						timers[char] = interval
+						step(player, char, hum, hrp, speed)
+					end
+				else
+					timers[char] = nil
+				end
+			end
+		end
+		for char in pairs(timers) do
+			if not char.Parent then
+				timers[char] = nil
+				side[char] = nil
+			end
+		end
+	end)
+end
+
+return Footsteps
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00001B9F"><Properties><string name="Name">RepairAnim</string><ProtectedString name="Source">--[[
+	Анимация починки генератора (клиент, без загрузки анимаций на сайт):
+	  - от третьего лица: каждый игрок с атрибутом Repairing встаёт на колено у панели,
+	    левая рука упирается в корпус, правая крутит ключ (трещотка) — видно всем клиентам;
+	  - от первого лица: у себя на экране — ключ в руке перед камерой, рывки трещотки,
+	    камера опущена (на колене) и вздрагивает на каждом щелчке.
+	Работает через Motor6D.C0 поверх стандартного Animator (R15 и R6).
+]]
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local RepairAnim = {}
+RepairAnim.kneelOffset = -0.75 -- насколько опускать камеру у себя
+RepairAnim.onRatchet = nil -- function() на каждый щелчок ключа (для тряски камеры)
+
+local A = CFrame.Angles
+local bases = {} -- [Motor6D] = исходный C0 (снят при появлении персонажа)
+local posed = {} -- [character] = true, пока на нём поза
+
+local function remember(char)
+	for _, m in ipairs(char:GetDescendants()) do
+		if m:IsA("Motor6D") and bases[m] == nil then
+			bases[m] = m.C0
+		end
+	end
+	char.DescendantAdded:Connect(function(m)
+		if m:IsA("Motor6D") and bases[m] == nil then
+			bases[m] = m.C0
+		end
+	end)
+end
+
+-- ratchet: быстрый рывок вперёд (0..0.35 цикла), медленный возврат
+local function ratchet(t)
+	local c = t % 0.55 / 0.55
+	if c &lt; 0.3 then
+		return math.sin(c / 0.3 * math.pi / 2)
+	end
+	return 1 - (c - 0.3) / 0.7
+end
+
+local POSE_R15 = function(t)
+	local r = ratchet(t)
+	local breathe = math.sin(t * 2.4) * 0.03
+	return {
+		Root = CFrame.new(0, -0.3, 0) * A(-0.12, 0, 0),
+		Waist = A(-0.38 - breathe, 0.1 * r, 0),
+		Neck = A(-0.45 + breathe, -0.15 + 0.1 * r, 0),
+		RightHip = A(1.45, 0, 0), -- правая нога: ступня впереди
+		RightKnee = A(-1.5, 0, 0),
+		RightAnkle = A(0.1, 0, 0),
+		LeftHip = A(0.15, 0, 0), -- левое колено на полу
+		LeftKnee = A(-1.6, 0, 0),
+		LeftAnkle = A(0.7, 0, 0),
+		LeftShoulder = A(1.15, 0, 0.25), -- левая рука упирается в корпус
+		LeftElbow = A(0.35, 0, 0),
+		RightShoulder = A(0.95 + 0.45 * r, 0, -0.15 - 0.15 * r), -- правая рука крутит ключ
+		RightElbow = A(0.85 - 0.5 * r, 0, 0),
+		RightWrist = A(0, 0.6 * r - 0.3, 0),
+	}
+end
+
+local POSE_R6 = function(t)
+	local r = ratchet(t)
+	return {
+		RootJoint = CFrame.new(0, -1.1, 0) * A(-0.3, 0, 0),
+		Neck = A(0.4, 0, 0),
+		["Right Hip"] = A(0, 0, 1.4),
+		["Left Hip"] = A(0, 0, -0.2),
+		["Left Shoulder"] = A(0, 0, -1.2),
+		["Right Shoulder"] = A(0, 0, 1.0 + 0.5 * r),
+	}
+end
+
+local function applyPose(char, t)
+	local pose = char:FindFirstChild("UpperTorso") and POSE_R15(t) or POSE_R6(t)
+	for _, m in ipairs(char:GetDescendants()) do
+		if m:IsA("Motor6D") and pose[m.Name] and bases[m] then
+			m.C0 = bases[m] * pose[m.Name]
+		end
+	end
+	posed[char] = true
+end
+
+local function clearPose(char)
+	for _, m in ipairs(char:GetDescendants()) do
+		if m:IsA("Motor6D") and bases[m] then
+			m.C0 = bases[m]
+		end
+	end
+	posed[char] = nil
+end
+
+-- ключ в руке от первого лица
+local viewmodel = nil
+local function buildViewmodel()
+	local m = Instance.new("Model")
+	m.Name = "RepairViewmodel"
+	local function part(name, size, color, material)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.Color = color
+		p.Material = material
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Parent = m
+		return p
+	end
+	part("Glove", Vector3.new(0.55, 0.5, 0.75), Color3.fromRGB(46, 42, 38), Enum.Material.Fabric)
+	part("Sleeve", Vector3.new(0.6, 0.6, 1.6), Color3.fromRGB(150, 160, 150), Enum.Material.Fabric)
+	part("Handle", Vector3.new(0.18, 0.18, 1.5), Color3.fromRGB(140, 140, 136), Enum.Material.Metal)
+	part("Head", Vector3.new(0.5, 0.18, 0.45), Color3.fromRGB(120, 120, 118), Enum.Material.Metal)
+	part("Grip", Vector3.new(0.22, 0.22, 0.6), Color3.fromRGB(150, 30, 30), Enum.Material.SmoothPlastic)
+	local light = Instance.new("PointLight")
+	light.Range = 5
+	light.Brightness = 0.6
+	light.Color = Color3.fromRGB(255, 200, 140)
+	light.Parent = m.Glove
+	return m
+end
+
+local function placeViewmodel(cam, t)
+	local r = ratchet(t)
+	local base = cam.CFrame * CFrame.new(0.55, -0.85, -1.7) * A(0.25, -0.15, 0)
+	-- рывок: кисть проворачивает ключ вокруг оси головки
+	local crank = base * A(0, 0, -0.9 * r + 0.3) * CFrame.new(0, 0.05 * r, 0)
+	local m = viewmodel
+	m.Glove.CFrame = crank * CFrame.new(0, 0, 0.35)
+	m.Sleeve.CFrame = crank * CFrame.new(0.05, -0.1, 1.3) * A(0.12, 0, 0)
+	m.Grip.CFrame = crank * CFrame.new(0, 0, 0.35)
+	m.Handle.CFrame = crank * CFrame.new(0, 0, -0.35)
+	m.Head.CFrame = crank * CFrame.new(0, 0, -1.15)
+end
+
+local started = false
+function RepairAnim.start()
+	if started then
+		return
+	end
+	started = true
+	local me = Players.LocalPlayer
+	local function watch(p)
+		if p.Character then
+			remember(p.Character)
+		end
+		p.CharacterAdded:Connect(remember)
+	end
+	for _, p in ipairs(Players:GetPlayers()) do
+		watch(p)
+	end
+	Players.PlayerAdded:Connect(watch)
+
+	local lastClick = 0
+	RunService.RenderStepped:Connect(function()
+		local t = os.clock()
+		for _, p in ipairs(Players:GetPlayers()) do
+			local char = p.Character
+			if char and char.Parent then
+				if p:GetAttribute("Repairing") then
+					applyPose(char, t)
+				elseif posed[char] then
+					clearPose(char)
+				end
+			end
+		end
+		for char in pairs(posed) do
+			if not char.Parent then
+				posed[char] = nil
+			end
+		end
+		for m in pairs(bases) do
+			if not m.Parent then
+				bases[m] = nil
+			end
+		end
+
+		local cam = workspace.CurrentCamera
+		local mine = me:GetAttribute("Repairing") and cam and not me:GetAttribute("Dead")
+		if mine then
+			if not viewmodel then
+				viewmodel = buildViewmodel()
+				viewmodel.Parent = cam
+			end
+			placeViewmodel(cam, t)
+			local phase = t % 0.55 / 0.55
+			if phase &lt; 0.05 and t - lastClick &gt; 0.3 then
+				lastClick = t
+				if RepairAnim.onRatchet then
+					RepairAnim.onRatchet()
+				end
+			end
+		elseif viewmodel then
+			viewmodel:Destroy()
+			viewmodel = nil
+		end
+	end)
+end
+
+return RepairAnim
+</ProtectedString></Properties></Item></Item>
 </Item>
 <Item class="ServerScriptService" referent="RBX000006F0"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX000006F1"><Properties><string name="Name">Core</string></Properties><Item class="ModuleScript" referent="RBX000006F2"><Properties><string name="Name">BattlePassService</string><ProtectedString name="Source">-- Серверная логика батлпасса: опыт и выдача наград
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -3288,17 +3671,18 @@ function FS.setOn(player, on)
 	end
 end
 
--- ПРИСЯДКА: поза через Motor6D.C0 (видно другим игрокам), скорость ставит клиент
+-- ПРИСЯДКА: поза через Motor6D.C0 (видно другим игрокам), скорость ставит клиент.
+-- Знак X: +X поворачивает ногу/руку вперёд, а корпус/голову — НАЗАД; поэтому наклон корпуса вперёд = -X.
 local CROUCH_POSE = {
-	Root = { CFrame.new(0, -0.6, 0) * CFrame.Angles(0.1, 0, 0) },
-	Waist = { CFrame.Angles(0.35, 0, 0) },
+	Root = { CFrame.new(0, -0.6, 0) * CFrame.Angles(-0.1, 0, 0) },
+	Waist = { CFrame.Angles(-0.35, 0, 0) },
 	LeftHip = { CFrame.Angles(0.95, 0, 0) },
 	RightHip = { CFrame.Angles(0.95, 0, 0) },
 	LeftKnee = { CFrame.Angles(-1.35, 0, 0) },
 	RightKnee = { CFrame.Angles(-1.35, 0, 0) },
 	LeftAnkle = { CFrame.Angles(0.4, 0, 0) },
 	RightAnkle = { CFrame.Angles(0.4, 0, 0) },
-	RootJoint = { CFrame.new(0, -0.7, 0) * CFrame.Angles(0.25, 0, 0) }, -- R6
+	RootJoint = { CFrame.new(0, -0.7, 0) * CFrame.Angles(-0.25, 0, 0) }, -- R6
 }
 local baseC0 = {} -- [motor] = C0 до присядки
 
@@ -4243,6 +4627,9 @@ local ClientData = require(Shared:WaitForChild("ClientData"))
 local BattlePass = require(Shared:WaitForChild("BattlePass"))
 local FL = require(Shared:WaitForChild("FlashlightClient"))
 local Animator = require(Shared:WaitForChild("MonsterAnimator"))
+local Footsteps = require(Shared:WaitForChild("Footsteps"))
+Footsteps.start()
+Sound.setSpace("lobby")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local Colors = UI.Colors
 
@@ -6020,7 +6407,8 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 end)
 </ProtectedString></Properties></Item>
+<Item class="LocalScript" referent="RBX00001BA0"><Properties><string name="Name">RbxCharacterSounds</string><ProtectedString name="Source">-- отключено: шаги и эхо — ReplicatedStorage.Shared.Footsteps
+</ProtectedString></Properties></Item></Item>
 </Item>
-</Item>
-<Item class="SoundService" referent="RBX00000703"><Properties><string name="Name">SoundService</string><token name="AmbientReverb">14</token><float name="RolloffScale">1</float></Properties><Item class="SoundGroup" referent="RBX00001B9E"><Properties><string name="Name">Master</string><float name="Volume">1</float></Properties><Item class="SoundGroup" referent="RBX00001B9F"><Properties><string name="Name">Music</string><float name="Volume">1</float></Properties></Item><Item class="SoundGroup" referent="RBX00001BA0"><Properties><string name="Name">SFX</string><float name="Volume">1</float></Properties></Item></Item></Item>
+<Item class="SoundService" referent="RBX00000703"><Properties><string name="Name">SoundService</string><token name="AmbientReverb">14</token><float name="RolloffScale">1</float></Properties><Item class="SoundGroup" referent="RBX00001BA1"><Properties><string name="Name">Master</string><float name="Volume">1</float></Properties><Item class="SoundGroup" referent="RBX00001BA2"><Properties><string name="Name">Music</string><float name="Volume">1</float></Properties></Item><Item class="SoundGroup" referent="RBX00001BA3"><Properties><string name="Name">SFX</string><float name="Volume">1</float></Properties><Item class="SoundGroup" referent="RBX00001BA4"><Properties><string name="Name">Footsteps</string><float name="Volume">1</float></Properties><Item class="EchoSoundEffect" referent="RBX00001BA5"><Properties><string name="Name">Echo</string><float name="Delay">0.22</float><float name="Feedback">0.3</float><float name="DryLevel">0</float><float name="WetLevel">-7</float><int name="Priority">1</int><bool name="Enabled">true</bool></Properties></Item><Item class="ReverbSoundEffect" referent="RBX00001BA6"><Properties><string name="Name">Reverb</string><float name="DecayTime">1.6</float><float name="Density">1</float><float name="Diffusion">1</float><float name="DryLevel">0</float><float name="WetLevel">-9</float><int name="Priority">2</int><bool name="Enabled">true</bool></Properties></Item></Item></Item></Item></Item>
 </roblox>

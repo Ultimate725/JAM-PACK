@@ -287,13 +287,64 @@ def generator_on():
 
 
 def generator_crank():
-    dur = 2.6
-    x = np.zeros(int(dur * SR))
-    for k in range(18):  # ratchet
-        place(x, metal_hit(1400 + (k % 3) * 120, 140 + k, 0.06, 0.008) * 0.5, k * 0.13 + rng(141).random() * 0.02)
+    # бесшовная петля: 4 цикла трещотки по 0.55 с — совпадает с анимацией починки (RepairAnim.ratchet)
+    cycle, cycles = 0.55, 4
+    dur = cycle * cycles
+    n = int(dur * SR)
+    x = np.zeros(n + int(0.3 * SR))
+    for c in range(cycles):
+        for k in range(3):  # три щелчка собачки на рывок ключа
+            place(x, metal_hit(1400 + ((c + k) % 3) * 120, 140 + c * 3 + k, 0.06, 0.008) * (0.55 - k * 0.12),
+                  c * cycle + k * 0.045 + rng(141 + c).random() * 0.01)
+    x[:len(x) - n] += x[n:]  # хвосты последних щелчков — в начало петли
+    x = x[:n]
     t = t_axis(dur)
-    grind = band_noise(len(t), 150, 1800, 142) * (0.4 + 0.4 * np.sin(TAU * 7.7 * t) ** 2) * 0.5
-    return reverb(x + grind * env_adsr(len(t), 0.1, 0, 0, 0.4, 1), 0.8, 0.2, seed=143)
+    grind = band_noise(n, 150, 1800, 142) * (0.4 + 0.4 * np.sin(TAU * t / cycle) ** 2) * 0.5
+    return reverb(x + grind, 0.8, 0.2, seed=143, circular=True)
+
+
+# -- шаги: сухие, эхо/реверберацию добавляет SoundGroup "Footsteps" в игре --------------------------
+def footstep_concrete():
+    n = int(0.32 * SR)
+    t = np.arange(n) / SR
+    heel = np.sin(phase_of(95 + 60 * np.exp(-t * 40))) * decay(n, 0.03)
+    grit = band_noise(n, 1800, 7000, 610) * decay(n, 0.045) * 0.5
+    scuff = band_noise(n, 600, 3500, 611) * np.exp(-((t - 0.07) / 0.03) ** 2) * 0.22
+    return heel + grit + scuff
+
+
+def footstep_wood():
+    n = int(0.45 * SR)
+    t = np.arange(n) / SR
+    knock = sum(np.sin(TAU * f * t) * decay(n, d) / (i + 1) for i, (f, d) in enumerate(((165, 0.07), (330, 0.04), (520, 0.02))))
+    tap = band_noise(n, 800, 5000, 620) * decay(n, 0.02) * 0.4
+    creak = np.sin(phase_of(380 + 60 * np.sin(TAU * 3 * t))) * np.exp(-((t - 0.16) / 0.06) ** 2) * 0.08
+    return knock + tap + creak
+
+
+def footstep_grass():
+    n = int(0.38 * SR)
+    t = np.arange(n) / SR
+    rustle = band_noise(n, 1500, 9000, 630) * np.sin(np.clip(t / 0.3, 0, 1) * np.pi) ** 1.5
+    rustle *= 0.6 + 0.4 * (rng(631).random(n) > 0.6)
+    thud = np.sin(phase_of(70 + 40 * np.exp(-t * 30))) * decay(n, 0.04) * 0.5
+    return fft_filter(rustle, 1500, 9000) * 0.6 + thud
+
+
+def footstep_metal():
+    n = int(0.6 * SR)
+    t = np.arange(n) / SR
+    ring = metal_hit(310, 640, 0.6, 0.12)[:n] * 0.45
+    thud = np.sin(phase_of(110 + 50 * np.exp(-t * 35))) * decay(n, 0.03)
+    return ring + thud + band_noise(n, 2000, 8000, 641) * decay(n, 0.02) * 0.3
+
+
+def paper():
+    n = int(0.7 * SR)
+    t = np.arange(n) / SR
+    crackle = band_noise(n, 2000, 11000, 650) * (rng(651).random(n) > 0.85)
+    swish = band_noise(n, 1200, 6000, 652) * np.sin(np.clip(t / 0.6, 0, 1) * np.pi) * 0.4
+    return fft_filter(crackle * np.sin(np.clip(t / 0.65, 0, 1) * np.pi) + swish, 1200, 11000)
 
 
 def gate_open():
@@ -531,9 +582,11 @@ SOUNDS = {
     "GeneratorOn": generator_on, "GeneratorCrank": generator_crank, "GateOpen": gate_open, "Purchase": purchase,
     "Teleport": teleport, "Whisper": whisper, "LightBuzz": loop_light_buzz, "MetalBang": metal_bang,
     "Breathing": loop_breathing, "Cloth": cloth, "Drip": drip, "Wind": loop_wind, "Crow": crow, "Bell": bell,
+    "FootstepConcrete": footstep_concrete, "FootstepWood": footstep_wood, "FootstepGrass": footstep_grass,
+    "FootstepMetal": footstep_metal, "Paper": paper,
 }
 LOOPED = {"MonsterBreath", "Ambience", "AmbienceMorgue", "AmbienceForest", "MenuMusic", "Heartbeat",
-          "LightBuzz", "Breathing", "Wind"}
+          "LightBuzz", "Breathing", "Wind", "GeneratorCrank"}
 
 
 def write_ogg(x, path, quality=4):

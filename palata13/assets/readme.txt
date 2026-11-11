@@ -5,10 +5,10 @@ WHAT IS IN THIS ZIP
 -------------------
   Palata13_Lobby.rbxlx        Lobby place (start place): main menu, shops, gates + gate consoles
   Palata13_Game.rbxlx         Game place: 3 maps (Hospital, Morgue, Sanatorium), monster, rounds
-  Sounds/                     32 original sound files (.ogg) - one per entry in Config.Sounds
+  Sounds/                     37 original sound files (.ogg) - one per entry in Config.Sounds
   Store/                      Game icon, game thumbnail, 3 game-pass icons, 5 developer-product icons
   Config_IDs_template.lua     The Config blocks to fill in (sounds, passes, products, place IDs)
-  upload_sounds.py            OPTIONAL: uploads all 32 sounds automatically and fills the IDs for you
+  upload_sounds.py            OPTIONAL: uploads all 37 sounds automatically and fills the IDs for you
   readme.txt                  This file
 
 All sounds and images were made from scratch for this game (procedurally generated),
@@ -33,7 +33,7 @@ Upload with the SAME account (or group) that owns the experience - Roblox audio 
 and only plays in experiences owned by the uploader.
 
  A) Manual (no setup):
-    Studio > View > Asset Manager > "Bulk Import" (the up-arrow icon) > select all 32 files
+    Studio > View > Asset Manager > "Bulk Import" (the up-arrow icon) > select all 37 files
     in the Sounds folder. After it finishes, right-click each sound > Copy Asset ID, and paste
     the number into Config_IDs_template.lua next to the matching name.
     (Or upload one by one at create.roblox.com > Creations > Audio.)
@@ -47,7 +47,7 @@ and only plays in experiences owned by the uploader.
                        python upload_sounds.py --user-id YOUR_USER_ID
          macOS/Linux:  ROBLOX_API_KEY=your_key_here python3 upload_sounds.py --user-id YOUR_USER_ID
        (group-owned game: use --group-id YOUR_GROUP_ID instead of --user-id)
-    3. It writes Config_Sounds_filled.lua with all 32 IDs. If it stops (rate limit, network),
+    3. It writes Config_Sounds_filled.lua with all 37 IDs. If it stops (rate limit, network),
        just run it again - it skips sounds already uploaded (saved in sound_ids.txt).
 
 New audio is moderated; a sound may stay silent for a few minutes until it is approved.
@@ -102,12 +102,26 @@ STEP 5 - TEST
 CONTROLS
 --------
  F flashlight . SHIFT sprint . C or Left Ctrl crouch (quiet) . E interact / hide / repair
+ 1-4 use an inventory slot . TAB or N read collected notes
  M settings in a round (volume sliders, sensitivity, crouch toggle/hold)
+
+
+INVENTORY (bar at the bottom of the screen)
+-------------------------------------------
+ Everything you pick up goes into the 4-slot bar at the bottom: fuses (max 2 at a time)
+ and story notes. Batteries do NOT go there - they go straight into the flashlight.
+ Click a slot or press 1-4: fuse = shows what it is for, notes = opens the note reader.
+ If you die, your fuses drop on the floor for the others. 5 notes per map tell its story.
 
 
 HOW A ROUND WORKS
 -----------------
- Find fuses -> put one in a generator -> hold E to repair it (noisy, progress is kept).
+ Find fuses -> press E at a generator to put one in -> press E again to start repairing.
+ While repairing, your character kneels at the panel, turns a wrench (animation) and
+ CANNOT MOVE. Press E again to stand up. Progress is kept if you leave or get interrupted.
+ Repair takes one player ~32 s on Easy, 40 s Medium, 48 s Hard, 55 s Nightmare.
+ Two or more players at the same generator repair faster (each helper adds 75%).
+ Change the times in Config: Config.Difficulties[...].repair (fallback Config.Round.RepairTime).
  Easy needs 2 generators, Medium/Hard 3, Nightmare 4. When enough run: the lights come on,
  the exit gate opens and the monster becomes enraged. Reach the exit zone to escape.
  Easy/Nightmare: the monster is BLIND but hears you (crouch!). Medium/Hard: it also sees you.
@@ -133,7 +147,7 @@ SOUND LIST (file -> what it is / where it plays)
  Pickup                         fuse / battery pickup
  FuseInsert                     fuse into a generator
  GeneratorOn                    generator starts (also when all are fixed)
- GeneratorCrank                 repairing a generator
+ GeneratorCrank       (loop)    wrench ratchet while repairing (in time with the animation)
  GateOpen                       exit gate / elevator grille opening
  Purchase                       shop purchase, escape
  Teleport                       teleport between lobby and game
@@ -146,6 +160,14 @@ SOUND LIST (file -> what it is / where it plays)
  Wind                 (loop)    wind on the sanatorium map
  Crow                           crows on the sanatorium map
  Bell                           chapel bell with no ringer (sanatorium)
+ FootstepConcrete / FootstepWood / FootstepGrass / FootstepMetal
+                                your and other players' footsteps, picked by floor material;
+                                quiet when crouching, loud when sprinting. Recorded DRY - the
+                                echo + reverb is added in-game (SoundService > Master > SFX >
+                                Footsteps: EchoSoundEffect + ReverbSoundEffect) and changes
+                                by place: long corridor echo in the hospital, tiled ringing
+                                in the morgue, almost none outdoors.
+ Paper                          picking up a note
 
 
 KNOWN LIMITS / NOTES

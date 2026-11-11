@@ -29,7 +29,8 @@ API = "https://apis.roblox.com/assets/v1"
 ORDER = ["FlashlightOn", "FlashlightOff", "MonsterStep", "MonsterBreath", "MonsterScream", "MonsterSniff", "Sonar",
          "ChaseSting", "Ambience", "AmbienceMorgue", "AmbienceForest", "MenuMusic", "Heartbeat", "Static", "UIHover",
          "UIClick", "Pickup", "FuseInsert", "GeneratorOn", "GeneratorCrank", "GateOpen", "Purchase", "Teleport",
-         "Whisper", "LightBuzz", "MetalBang", "Breathing", "Cloth", "Drip", "Wind", "Crow", "Bell"]
+         "Whisper", "LightBuzz", "MetalBang", "Breathing", "Cloth", "Drip", "Wind", "Crow", "Bell",
+         "FootstepConcrete", "FootstepWood", "FootstepGrass", "FootstepMetal", "Paper"]
 
 
 def request(method, url, key, body=None, content_type=None):
