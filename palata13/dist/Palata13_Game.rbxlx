@@ -22190,6 +22190,50 @@ local function startAmbience()
 end
 startAmbience()
 workspace:GetAttributeChangedSignal("Map"):Connect(startAmbience)
+-- per-map extras: wind bed on the sanatorium, plus random drips / crows / the bell with no ringer
+local windBed = nil
+local function startMapExtras()
+	if windBed then
+		windBed:Destroy()
+		windBed = nil
+	end
+	if workspace:GetAttribute("Map") == "Sanatorium" then
+		windBed = Sound.make("Wind", nil, { Looped = true, Volume = 0.35 })
+		if windBed then
+			windBed:Play()
+		end
+	end
+end
+startMapExtras()
+workspace:GetAttributeChangedSignal("Map"):Connect(startMapExtras)
+task.spawn(function()
+	while true do
+		task.wait(math.random(12, 30))
+		local cam = workspace.CurrentCamera
+		local mapId = workspace:GetAttribute("Map")
+		if cam and not player:GetAttribute("Dead") then
+			local a = math.random() * math.pi * 2
+			local around = cam.CFrame.Position + Vector3.new(math.cos(a), 0, math.sin(a)) * math.random(8, 30)
+			if mapId == "Morgue" then
+				Sound.playAt("Drip", around + Vector3.new(0, 6, 0), { Volume = 0.7, RollOffMaxDistance = 45 })
+			elseif mapId == "Sanatorium" then
+				if math.random() &lt; 0.25 then
+					-- chapel bell tower (maps are cloned at their authored position)
+					Sound.playAt("Bell", Vector3.new(-108, 30, 100), {
+						Volume = 1,
+						RollOffMinDistance = 60,
+						RollOffMaxDistance = 600,
+					})
+				else
+					Sound.playAt("Crow", around + Vector3.new(0, 25, 0), { Volume = 0.8, RollOffMinDistance = 20, RollOffMaxDistance = 200 })
+				end
+			elseif math.random() &lt; 0.4 then
+				Sound.playAt("Drip", around + Vector3.new(0, 6, 0), { Volume = 0.5, RollOffMaxDistance = 35 })
+			end
+		end
+	end
+end)
+
 local heartbeat = Sound.make("Heartbeat", nil, { Looped = true, Volume = 0 })
 if heartbeat then
 	heartbeat:Play()
